@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(texture_vbo)
+project(texture_glfunc)
 
 file(GLOB qt_path /opt/Qt*)
 

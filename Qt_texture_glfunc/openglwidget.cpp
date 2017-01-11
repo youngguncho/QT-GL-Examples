@@ -20,12 +20,7 @@ OpenglWidget::OpenglWidget(QWidget *parent) : QOpenGLWidget(parent)
 
 OpenglWidget::~OpenglWidget()
 {
-    makeCurrent();
-    vbo.destroy();
-    for (int i = 0; i < 6; ++i)
-        delete textures[i];
-    delete program;
-    doneCurrent();
+
 }
 
 void OpenglWidget::initializeGL()
@@ -54,6 +49,9 @@ void OpenglWidget::initShaders()
     _shaderProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/vertexShader.vsh");
     _shaderProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/fragmentShader.fsh");
     _shaderProgram.link();
+
+    _shaderProgram.bind();
+    _shaderProgram.setUniformValue("texture", 0);
 
     qDebug() << "Done shader";
 
@@ -89,26 +87,23 @@ void OpenglWidget::paintGL()
     _vMatrix.lookAt(_camPosition, _camPosition+_camFront, _camUpDirection);
     _T = _pMatrix * _vMatrix * _mMatrix;
 
-    _shaderProgram.bind();
-
     _shaderProgram.setUniformValue("mvpMatrix", _T);
-    _shaderProgram.setAttributeBuffer("vertex", GL_FLOAT, 0, 3,  5 *sizeof(GLfloat));
-    _shaderProgram.setAttributeBuffer("textureCoordinate", GL_FLOAT, 3*sizeof(GLfloat), 2, 5 *sizeof(GLfloat));
+    _shaderProgram.setAttributeArray("vertex", vertices.constData());
     _shaderProgram.enableAttributeArray("vertex");
+
+    _shaderProgram.setAttributeArray("textureCoordinate", textureCoordinates.constData());
     _shaderProgram.enableAttributeArray("textureCoordinate");
 
-    _shaderProgram.setUniformValue("texture", 0);
-    for (int i=0; i<6; ++i) {
-//        textures[i]->bind();
-        textures_one->bind();
-        glDrawArrays(GL_TRIANGLE_FAN, i * 4, 4);
-    }
+    textures_one->bind();
+
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
     _shaderProgram.disableAttributeArray("vertex");
+
     _shaderProgram.disableAttributeArray("textureCoordinate");
 
-    _shaderProgram.release();
-
+// TODO: if uncomment release, texture won't be mappping
+//    _shaderProgram.release();
 
 
 }
@@ -196,6 +191,32 @@ void OpenglWidget::keyPressEvent(QKeyEvent *event)
 
 void OpenglWidget::makeObject()
 {
+    vertices << QVector3D(-0.5, -0.5,  0.5) << QVector3D( 0.5, -0.5,  0.5) << QVector3D( 0.5,  0.5,  0.5) // Front
+             << QVector3D( 0.5,  0.5,  0.5) << QVector3D(-0.5,  0.5,  0.5) << QVector3D(-0.5, -0.5,  0.5)
+             << QVector3D( 0.5, -0.5, -0.5) << QVector3D(-0.5, -0.5, -0.5) << QVector3D(-0.5,  0.5, -0.5) // Back
+             << QVector3D(-0.5,  0.5, -0.5) << QVector3D( 0.5,  0.5, -0.5) << QVector3D( 0.5, -0.5, -0.5)
+             << QVector3D(-0.5, -0.5, -0.5) << QVector3D(-0.5, -0.5,  0.5) << QVector3D(-0.5,  0.5,  0.5) // Left
+             << QVector3D(-0.5,  0.5,  0.5) << QVector3D(-0.5,  0.5, -0.5) << QVector3D(-0.5, -0.5, -0.5)
+             << QVector3D( 0.5, -0.5,  0.5) << QVector3D( 0.5, -0.5, -0.5) << QVector3D( 0.5,  0.5, -0.5) // Right
+             << QVector3D( 0.5,  0.5, -0.5) << QVector3D( 0.5,  0.5,  0.5) << QVector3D( 0.5, -0.5,  0.5)
+             << QVector3D(-0.5,  0.5,  0.5) << QVector3D( 0.5,  0.5,  0.5) << QVector3D( 0.5,  0.5, -0.5) // Top
+             << QVector3D( 0.5,  0.5, -0.5) << QVector3D(-0.5,  0.5, -0.5) << QVector3D(-0.5,  0.5,  0.5)
+             << QVector3D(-0.5, -0.5, -0.5) << QVector3D( 0.5, -0.5, -0.5) << QVector3D( 0.5, -0.5,  0.5) // Bottom
+             << QVector3D( 0.5, -0.5,  0.5) << QVector3D(-0.5, -0.5,  0.5) << QVector3D(-0.5, -0.5, -0.5);
+    //! [3]
+    textureCoordinates << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Front
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0)
+                       << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Back
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0)
+                       << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Left
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0)
+                       << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Right
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0)
+                       << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Top
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0)
+                       << QVector2D(0, 0) << QVector2D(1, 0) << QVector2D(1, 1) // Bottom
+                       << QVector2D(1, 1) << QVector2D(0, 1) << QVector2D(0, 0);
+
     static const int coords[6][4][3] = {
         { { +1, -1, -1 }, { -1, -1, -1 }, { -1, +1, -1 }, { +1, +1, -1 } },
         { { +1, +1, -1 }, { -1, +1, -1 }, { -1, +1, +1 }, { +1, +1, +1 } },
@@ -211,6 +232,7 @@ void OpenglWidget::makeObject()
 
     textures_one =new QOpenGLTexture(QImage(QString(":resources/texture.png")));
 
+
     // set vertex and texture coordinate
     QVector<GLfloat> vertData;
     for (int i = 0; i < 6; ++i) {
@@ -225,10 +247,10 @@ void OpenglWidget::makeObject()
         }
     }
 
-    // create buffer
-    vbo.create();
-    vbo.bind();
-    vbo.allocate(vertData.constData(), vertData.count() * sizeof(GLfloat));
+//    // create buffer
+//    vbo.create();
+//    vbo.bind();
+//    vbo.allocate(vertData.constData(), vertData.count() * sizeof(GLfloat));
 
 
 }

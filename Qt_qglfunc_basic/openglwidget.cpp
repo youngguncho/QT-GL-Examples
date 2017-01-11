@@ -2,7 +2,6 @@
 
 OpenglWidget::OpenglWidget(QWidget *parent) : QOpenGLWidget(parent)
 {
-    memset(textures, 0, sizeof(textures));
 
     //// Set Initial Gl variables
     _camPosition = QVector3D(0, 0, 10);
@@ -20,31 +19,37 @@ OpenglWidget::OpenglWidget(QWidget *parent) : QOpenGLWidget(parent)
 
 OpenglWidget::~OpenglWidget()
 {
-    makeCurrent();
-    vbo.destroy();
-    for (int i = 0; i < 6; ++i)
-        delete textures[i];
-    delete program;
-    doneCurrent();
+
 }
 
 void OpenglWidget::initializeGL()
 {
     qDebug() << "initial GL";
-    initializeOpenGLFunctions();
+
+    // set up the rendering context
 
     makeObject();
 
+    initShaders();
+
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glClearColor(0, 0, 0, 1);
-
-
-    initShaders();
+    QOpenGLFunctions_4_5_Core *f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_5_Core>();
+    f->glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     qDebug() << "initial GL done";
 
 }
+
+
+void OpenglWidget::makeObject()
+{
+    vertices << QVector3D(1, 0, 0) << QVector3D(0, 1, 0) << QVector3D(0, 0, 1);
+    colors << QVector4D(1, 0, 0, 1) << QVector4D(0, 1, 1, 1) << QVector4D(0, 0, 1, 1);
+}
+
+
 
 void OpenglWidget::initShaders()
 {
@@ -54,6 +59,8 @@ void OpenglWidget::initShaders()
     _shaderProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/resources/vertexShader.vsh");
     _shaderProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, ":/resources/fragmentShader.fsh");
     _shaderProgram.link();
+
+
 
     qDebug() << "Done shader";
 
@@ -90,25 +97,17 @@ void OpenglWidget::paintGL()
     _T = _pMatrix * _vMatrix * _mMatrix;
 
     _shaderProgram.bind();
-
     _shaderProgram.setUniformValue("mvpMatrix", _T);
-    _shaderProgram.setAttributeBuffer("vertex", GL_FLOAT, 0, 3,  5 *sizeof(GLfloat));
-    _shaderProgram.setAttributeBuffer("textureCoordinate", GL_FLOAT, 3*sizeof(GLfloat), 2, 5 *sizeof(GLfloat));
+    _shaderProgram.setAttributeArray("vertex", vertices.constData(), 0);
     _shaderProgram.enableAttributeArray("vertex");
-    _shaderProgram.enableAttributeArray("textureCoordinate");
+    _shaderProgram.setAttributeArray("color", colors.constData(), 0);
+    _shaderProgram.enableAttributeArray("color");
 
-    _shaderProgram.setUniformValue("texture", 0);
-    for (int i=0; i<6; ++i) {
-//        textures[i]->bind();
-        textures_one->bind();
-        glDrawArrays(GL_TRIANGLE_FAN, i * 4, 4);
-    }
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
     _shaderProgram.disableAttributeArray("vertex");
-    _shaderProgram.disableAttributeArray("textureCoordinate");
-
+    _shaderProgram.disableAttributeArray("color");
     _shaderProgram.release();
-
 
 
 }
@@ -193,43 +192,3 @@ void OpenglWidget::keyPressEvent(QKeyEvent *event)
 
     update();
 }
-
-void OpenglWidget::makeObject()
-{
-    static const int coords[6][4][3] = {
-        { { +1, -1, -1 }, { -1, -1, -1 }, { -1, +1, -1 }, { +1, +1, -1 } },
-        { { +1, +1, -1 }, { -1, +1, -1 }, { -1, +1, +1 }, { +1, +1, +1 } },
-        { { +1, -1, +1 }, { +1, -1, -1 }, { +1, +1, -1 }, { +1, +1, +1 } },
-        { { -1, -1, -1 }, { -1, -1, +1 }, { -1, +1, +1 }, { -1, +1, -1 } },
-        { { +1, -1, +1 }, { -1, -1, +1 }, { -1, -1, -1 }, { +1, -1, -1 } },
-        { { -1, -1, +1 }, { +1, -1, +1 }, { +1, +1, +1 }, { -1, +1, +1 } }
-    };
-
-    // load texture
-    for (int i=0; i<6; ++i)
-        textures[i] = new QOpenGLTexture(QImage(QString(":resources/texture.png")).mirrored());
-
-    textures_one =new QOpenGLTexture(QImage(QString(":resources/texture.png")));
-
-    // set vertex and texture coordinate
-    QVector<GLfloat> vertData;
-    for (int i = 0; i < 6; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            // vertex position
-            vertData.append(0.2 * coords[i][j][0]);
-            vertData.append(0.2 * coords[i][j][1]);
-            vertData.append(0.2 * coords[i][j][2]);
-            // texture coordinate
-            vertData.append(j == 0 || j == 3);
-            vertData.append(j == 0 || j == 1);
-        }
-    }
-
-    // create buffer
-    vbo.create();
-    vbo.bind();
-    vbo.allocate(vertData.constData(), vertData.count() * sizeof(GLfloat));
-
-
-}
-
